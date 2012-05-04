@@ -1,0 +1,121 @@
+<script src="https://raw.github.com/ded/reqwest/master/reqwest.min.js"></script>
+<script>
+var collectivecount = (function() {
+	var urls = {
+		facebook: {
+			url: 'http://graph.facebook.com/?id=',
+			count_param: 'shares'
+		},
+		twitter: {
+			url: 'http://urls.api.twitter.com/1/urls/count.json?url=',
+			count_param: 'count'
+		}
+	}
+
+	/**
+     * Get the collective count
+     *
+     * @param {String} url The URL that you want the count of
+     * @param {Array} services The array of services that the count consists of. Defaults to all
+     * @param {Function} callback The function to run once the count is made. Count is sent as the first arg
+     */
+	function get(url, services, callback) {
+		var services = services || [],
+			services_rendered = 0,
+			count = 0;
+
+		if (services.length === 0) {
+			for (var service in urls) {
+				services.push(service);
+			}
+		}
+
+		for (var i = 0, len = services.length; i < len; i++) {
+			var service = urls[services[i]],
+				service_url = service.url,
+				service_count_param = service.count_param;
+			reqwest({
+				type: 'jsonp',
+				url: service_url + url,
+				count_param: service.count_param,
+				success: function(resp) {
+					count += resp[this.count_param];
+					services_rendered++;
+
+					if (callback && services_rendered === services.length) {
+						callback(count);
+					}
+				}
+			});
+		}
+	}
+
+	return {
+		get: get
+	}
+})();
+
+document.addEventListener("DOMContentLoaded", function() {
+	document.forms.collectivecount.addEventListener('submit', function(e) {
+		e.preventDefault();
+
+		var url = this.url.value,
+			service_checkboxes = this.service,
+			services = [];
+
+		for (var i = 0, len = service_checkboxes.length; i < len; i ++) {
+			var service = service_checkboxes[i];
+			if (service.checked) {
+				services.push(service.value);
+			}
+		}
+
+		collectivecount.get(url, services, function(count) {
+			document.getElementById('count').innerHTML = count;
+		});
+	});
+});
+</script>
+<style>
+	body {
+		color: #333;
+		font: 14px/1.4 Georgia;
+	}
+	input[type=url] {
+		font: 14px/1.4 Georgia;
+		padding: 10px;
+		width: 50%;
+	}
+	button[type=submit] {
+		font: 14px/1.4 Georgia;
+		padding: 10px;
+	}
+
+	p {
+		margin: 0;
+		padding: 0;
+	}
+
+	#count {
+		font-size: 72px;
+		text-align: center;
+	}
+</style>
+<form name="collectivecount">
+	<input type="url" name="url" value="" placeholder="URL" />
+	<button type="submit">Go get 'em</button>
+
+	<fieldset>
+		<legend>Services</legend>
+		
+		<input type="checkbox" name="service" value="twitter" id="service-twitter" />
+		<label for="service=-twitter">Twitter</label>
+		
+		<input type="checkbox" name="service" value="facebook" id="service-facebook" />
+		<label for="service=-facebook">Facebook</label>
+
+		<p>If none are selected, all will be assumed</p>
+	</fieldset>
+</form>
+
+<div id="count"></div>
